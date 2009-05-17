@@ -2,6 +2,7 @@
 ; Version History
 ; 1.01 (090512) : add process name
 ; 1.02 (090516) : add WM_NCHITTEST (SendMessage, 0x84) indicating the position of the cursor
+; 1.03 (090516) : add Auto Get Path (Alt-V T A)
 ; http://www.autohotkey.com/forum/topic16364.html
 ; http://msdn.microsoft.com/en-us/library/ms645618(VS.85).aspx
 ; CoordMode, Mouse, Screen	=> is needed to detect "explorer" title bar correctly
@@ -12,15 +13,16 @@ SetBatchLines, -1
 SetTitleMatchMode, 2
 CoordMode, Mouse, Screen
 applicationName = TinySpy
-applicationVer = 1.02
+applicationVer = 1.03
 
 iconPath = ..\icon\1242288799_kghostview.ico
 ifExist %iconPath%
 Menu, Tray, Icon, %iconPath%
 
 Gui, Font, S11 CDefault
-Gui, Add, CheckBox, w350 h20 vifSpyOn gClickSpyOnOff Checked
-Gui, Add, Edit, w400 h300 vSpyInfo, no Data yet ...
+Gui, Add, CheckBox, w200 h20 vifSpyOn gClickSpyOnOff Checked
+Gui, Add, CheckBox, xP+250 yP h20 vifAutoPath, Get Path (Alt-V T A)
+Gui, Add, Edit, xP-250 yp+30 w400 h300 vSpyInfo, no Data yet ...
 Gui, Show, , %applicationName% %applicationVer%
 
 ; Need +LastFound to make WinExist() to return window id of GUI itself
@@ -65,15 +67,30 @@ GetSpyInfo:
 	WinGetTitle, win_title, ahk_id %win_id%
 	WinGet, p_name, ProcessName, ahk_id %win_id%
 	ControlGetText, ctrl_text, %ctrl_id%, ahk_id %win_id%
-
-wingetclass, class, A
+currentpath=
+wingetclass, class, ahk_id %win_id%
 if class in CabinetWClass,ExploreWClass
 {
 	controlgettext, currentpath, Edit1, ahk_id %win_id%
+	if !currentpath AND ifAutoPath {
+		WinActivate, ahk_id %win_id%
+		WinWaitActive, ahk_id %win_id%
+		Send,!VTA
+		Loop,100
+		{
+			controlgettext, currentpath, Edit1, ahk_id %win_id%
+			if currentpath
+				break
+			sleep,10	; typically need only 2 cycle (20ms)
+		}
+		WinActivate, ahk_id %win_id%
+		WinWaitActive, ahk_id %win_id%
+		Send,!VTA
+	}
 }
 	Lines = [Window] %win_title%`n[Process]  %p_name%`n[Control]  %ctrl_id%`n
 	Lines .= "WM_NCHITTEST = " . WM_NCHITTEST_Result . "`n"
-	Lines .= "PATH = " . currentpath . "`n"
+	Lines .= "PATH = '" . currentpath . "'`n"
 	Lines .= "========== [Text] ==========`n" . ctrl_text
 
 	GuiControl,, SpyInfo, %Lines%
